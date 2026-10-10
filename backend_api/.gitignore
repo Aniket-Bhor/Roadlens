@@ -1,0 +1,15 @@
+# Python & Virtual Environments
+venv/
+uv_bin/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment Variables & Secrets
+.env
+.env*.local
+
+# Testing & Artifacts
+.pytest_cache/
+.coverage
+htmlcov/

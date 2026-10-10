@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+*/node_modules/
+package-lock.json.bak
+
+# Python Virtual Environments & Bytecode
+venv/
+*/venv/
+.venv/
+*/.venv/
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+*.pytest_cache/
+
+# Expo & Build Artifacts
+.expo/
+*/.expo/
+.expo-shared/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Android Native Builds
+edge_app/android/.gradle/
+edge_app/android/app/build/
+edge_app/android/build/
+edge_app/android/.cxx/
+edge_app/android/.idea/
+*.apk
+*.aab
+
+# Local Environment Variables (Keep .env.example)
+.env
+*/.env
+*.env.local
+
+# Video & Temporary Uploads
+backend_api/uploads/*
+!backend_api/uploads/.gitkeep
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+*.swp
+*~

@@ -1,0 +1,222 @@
+{
+  "name": "RoadLens - Critical Hazard Emergency Dispatch & Weather Quality Predictor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hazard-dispatch",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1e2f3a4b-5c6d-4e5f-a1b2-c3d4e5f6a7b8",
+      "name": "Supabase Hazard Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        160,
+        340
+      ],
+      "webhookId": "hazard-dispatch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract webhook payload\nconst item = $input.first().json;\nconst data = item.body || item;\nconst hazardClass = (data.hazard_class || 'pothole').toLowerCase();\nconst baseSeverity = Number(data.severity_score || 4.2);\nconst weather = (data.weather || 'monsoon').toLowerCase();\n\nlet weatherLabel = '🌧️ Monsoon / Heavy Rain';\nlet weatherMultiplier = 1.35;\nlet hydroplaneRisk = 88;\nlet predictedRqi = 34;\nlet surfaceFriction = 0.35;\n\nif (weather.includes('rain') || weather.includes('monsoon')) {\n  weatherLabel = '🌧️ Monsoon / Torrential Rain';\n  weatherMultiplier = 1.4;\n  hydroplaneRisk = 92;\n  predictedRqi = Math.max(15, Math.round(100 - (baseSeverity * 13) - 35));\n  surfaceFriction = 0.32;\n} else if (weather.includes('heat')) {\n  weatherLabel = '☀️ Extreme Heat (>42°C)';\n  weatherMultiplier = 1.15;\n  hydroplaneRisk = 5;\n  predictedRqi = Math.max(25, Math.round(100 - (baseSeverity * 9) - 15));\n  surfaceFriction = 0.74;\n} else {\n  weatherLabel = '☀️ Dry & Clear';\n  weatherMultiplier = 1.0;\n  hydroplaneRisk = 8;\n  predictedRqi = Math.max(40, Math.round(100 - (baseSeverity * 8)));\n  surfaceFriction = 0.88;\n}\n\nconst adjustedSeverity = Math.min(5.0, Number((baseSeverity * weatherMultiplier).toFixed(2)));\n\nreturn [{\n  json: {\n    ...data,\n    weather_condition: weatherLabel,\n    predicted_rqi: predictedRqi,\n    surface_friction: surfaceFriction,\n    hydroplaning_risk_pct: hydroplaneRisk,\n    weather_adjusted_severity: adjustedSeverity,\n    road_health_status: predictedRqi < 40 ? 'CRITICAL HAZARD' : (predictedRqi < 65 ? 'DEGRADED' : 'SATISFACTORY'),\n    weather_dispatch_advice: weather.includes('rain') ? 'Deploy high-visibility floating strobe beacons and emergency stormwater pumps' : 'Standard hot-pour asphalt compaction unit'\n  }\n}];"
+      },
+      "id": "7b8c9d0e-1f2a-3b4c-5d6e-7f8a9b0c1d2e",
+      "name": "Predict Road Quality & Weather Impact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.hazard_class ? $json.hazard_class.toLowerCase() : 'other' }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "pothole",
+              "outputKey": "Road Repair Team"
+            },
+            {
+              "value2": "flood",
+              "outputKey": "Emergency Services"
+            },
+            {
+              "value2": "debris",
+              "outputKey": "Highway Patrol"
+            }
+          ]
+        },
+        "fallbackOutput": {
+          "outputKey": "Highway Patrol"
+        }
+      },
+      "id": "2a3b4c5d-6e7f-4a5b-b2c3-d4e5f6a7b8c9",
+      "name": "Route Hazard Category",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        600,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#road-maintenance-dispatch\",\n  \"priority\": \"HIGH_CRITICAL\",\n  \"hazard_type\": \"POTHOLE / PAVEMENT CRACK\",\n  \"confidence\": \"{{ ($json.confidence * 100).toFixed(1) }}%\",\n  \"severity_raw\": \"{{ $json.severity_score }} / 5.0\",\n  \"weather_adjusted_severity\": \"{{ $json.weather_adjusted_severity }} / 5.0\",\n  \"weather_condition\": \"{{ $json.weather_condition }}\",\n  \"predictive_road_quality_index\": \"{{ $json.predicted_rqi }} / 100 ({{ $json.road_health_status }})\",\n  \"surface_friction_coefficient\": {{ $json.surface_friction }},\n  \"hydroplaning_risk\": \"{{ $json.hydroplaning_risk_pct }}%\",\n  \"coordinates\": {\n    \"latitude\": {{ $json.latitude }},\n    \"longitude\": {{ $json.longitude }}\n  },\n  \"google_maps_url\": \"https://www.google.com/maps/search/?api=1&query={{ $json.latitude }},{{ $json.longitude }}\",\n  \"weather_dispatch_advice\": \"{{ $json.weather_dispatch_advice }}\",\n  \"device_id\": \"{{ $json.device_id }}\",\n  \"timestamp\": \"{{ $json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "3c4d5e6f-7a8b-4c5d-c3d4-e5f6a7b8c9d0",
+      "name": "Alert Road Repair Team",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#emergency-services-civil-defense\",\n  \"priority\": \"EMERGENCY_TIER_1\",\n  \"hazard_type\": \"ROADWAY FLOOD / SEVERE INUNDATION\",\n  \"confidence\": \"{{ ($json.confidence * 100).toFixed(1) }}%\",\n  \"severity_level\": \"{{ $json.weather_adjusted_severity }} / 5.0 (LIFE_SAFETY_CRITICAL)\",\n  \"weather_condition\": \"{{ $json.weather_condition }}\",\n  \"predictive_road_quality_index\": \"{{ $json.predicted_rqi }} / 100\",\n  \"hydroplaning_danger\": \"{{ $json.hydroplaning_risk_pct }}%\",\n  \"coordinates\": {\n    \"latitude\": {{ $json.latitude }},\n    \"longitude\": {{ $json.longitude }}\n  },\n  \"google_maps_url\": \"https://www.google.com/maps/search/?api=1&query={{ $json.latitude }},{{ $json.longitude }}\",\n  \"action_plan\": [\n    \"1. Immediate closure of road segment between nearest highway ramps\",\n    \"2. Deploy mobile stormwater vacuum units\",\n    \"3. Broadcast emergency lane hazard notification to transit navigation feeds\"\n  ],\n  \"device_id\": \"{{ $json.device_id }}\",\n  \"timestamp\": \"{{ $json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "4d5e6f7a-8b9c-4d5e-d4e5-f6a7b8c9d0e1",
+      "name": "Alert Emergency Services",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#highway-patrol-rapid-response\",\n  \"priority\": \"URGENT\",\n  \"hazard_type\": \"ROAD DEBRIS / OBSTRUCTION\",\n  \"confidence\": \"{{ ($json.confidence * 100).toFixed(1) }}%\",\n  \"severity_level\": \"{{ $json.severity_score }} / 5.0\",\n  \"weather_condition\": \"{{ $json.weather_condition }}\",\n  \"predictive_road_quality\": \"{{ $json.predicted_rqi }} / 100\",\n  \"coordinates\": {\n    \"latitude\": {{ $json.latitude }},\n    \"longitude\": {{ $json.longitude }}\n  },\n  \"google_maps_url\": \"https://www.google.com/maps/search/?api=1&query={{ $json.latitude }},{{ $json.longitude }}\",\n  \"next_step_instructions\": [\n    \"1. Dispatch nearest Highway Patrol Interceptor unit\",\n    \"2. Clear carriageway obstruction within 15-minute SLA\",\n    \"3. Log clearance status\"\n  ],\n  \"device_id\": \"{{ $json.device_id }}\",\n  \"timestamp\": \"{{ $json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "5e6f7a8b-9c0d-4e5f-e5f6-a7b8c9d0e1f2",
+      "name": "Alert Highway Patrol",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"acknowledged\",\n  \"dispatched\": true,\n  \"weather_adjusted_severity\": {{ $json.weather_adjusted_severity || 4.5 }},\n  \"predicted_rqi\": {{ $json.predicted_rqi || 45 }},\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "6f7a8b9c-0d1e-4f5a-f6a7-b8c9d0e1f2a3",
+      "name": "Acknowledge Supabase",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        340
+      ]
+    }
+  ],
+  "connections": {
+    "Supabase Hazard Webhook": {
+      "main": [
+        [
+          {
+            "node": "Predict Road Quality & Weather Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Predict Road Quality & Weather Impact": {
+      "main": [
+        [
+          {
+            "node": "Route Hazard Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Hazard Category": {
+      "main": [
+        [
+          {
+            "node": "Alert Road Repair Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Emergency Services",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Highway Patrol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Road Repair Team": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Emergency Services": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Highway Patrol": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

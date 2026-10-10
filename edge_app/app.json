@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "RoadLens Scout",
+    "slug": "roadlens-scout",
+    "scheme": "roadlens-scout",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#081632"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.roadlens.scout",
+      "infoPlist": {
+        "NSCameraUsageDescription": "$(PRODUCT_NAME) needs camera access to detect road hazards and obstructions."
+      }
+    },
+    "android": {
+      "package": "com.roadlens.scout",
+      "adaptiveIcon": {
+        "backgroundColor": "#081632",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "$(PRODUCT_NAME) needs camera access to detect road hazards and obstructions.",
+          "enableMicrophonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to geotag detected road hazards.",
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to geotag detected road hazards.",
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f6bee38b-f346-4e6f-b552-1784056894a3"
+      }
+    }
+  }
+}

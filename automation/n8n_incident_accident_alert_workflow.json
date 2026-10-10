@@ -1,0 +1,218 @@
+{
+  "name": "RoadLens - Incident, Accident & Natural Disaster Emergency Dispatch",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incident-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "inc-hook-001",
+      "name": "Incident Alert Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        160,
+        340
+      ],
+      "webhookId": "incident-alert"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst data = item.body || item;\n\nconst category = (data.incident_category || 'ACCIDENT').toUpperCase();\nconst isBlocked = data.is_road_blocked === true;\nconst blockage = data.blockage_level || 'PARTIAL_LANE_CLOSURE';\nconst road = data.road_name || 'Urban Arterial Corridor';\nconst congestion = data.traffic_impact ? data.traffic_impact.congestion_percentage : 80;\nconst delay = data.traffic_impact ? data.traffic_impact.estimated_delay_minutes : 25;\n\nlet dispatchTeam = 'Traffic Police & Recovery Crane';\nlet priority = 'EMERGENCY_TIER_1';\n\nif (category.includes('DISASTER') || category.includes('FLOOD') || category.includes('LANDSLIDE')) {\n  dispatchTeam = 'Civil Defense & Disaster Response Squad';\n  priority = 'CATASTROPHIC_TIER_0';\n} else if (category.includes('ACCIDENT')) {\n  dispatchTeam = 'Crash Investigation & Heavy Recovery Crane';\n  priority = 'CRITICAL_ACCIDENT';\n}\n\nreturn [{\n  json: {\n    ...data,\n    processed_at: new Date().toISOString(),\n    assigned_dispatch_unit: dispatchTeam,\n    emergency_priority: priority,\n    is_road_impassable: isBlocked,\n    citizen_broadcast_ready: true,\n    summary: `${priority}: ${category} at ${road}. Blockage: ${blockage}. Congestion: ${congestion}% (+${delay}m delay).`\n  }\n}];"
+      },
+      "id": "inc-code-002",
+      "name": "Process Incident & Route Dispatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.incident_category ? $json.incident_category.toUpperCase() : 'ACCIDENT' }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "ACCIDENT",
+              "outputKey": "Traffic Police & Crane"
+            },
+            {
+              "value2": "NATURAL_DISASTER",
+              "outputKey": "Civil Defense & Disaster Rescue"
+            }
+          ]
+        },
+        "fallbackOutput": {
+          "outputKey": "Municipal Road Marshals"
+        }
+      },
+      "id": "inc-switch-003",
+      "name": "Route by Incident Category",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        600,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#traffic-police-crash-dispatch\",\n  \"priority\": \"{{ $json.emergency_priority }}\",\n  \"event\": \"ACCIDENT / TEMPO COLLISION\",\n  \"location\": \"{{ $json.road_name }}\",\n  \"blockage\": \"{{ $json.blockage_level }}\",\n  \"congestion\": \"{{ $json.traffic_impact ? $json.traffic_impact.congestion_percentage : 85 }}% (+{{ $json.traffic_impact ? $json.traffic_impact.estimated_delay_minutes : 25 }}m delay)\",\n  \"recommended_detour\": \"{{ $json.traffic_impact ? $json.traffic_impact.recommended_detour : 'Alternative bypass' }}\",\n  \"dispatch_instructions\": [\n    \"1. Mobilize nearest Highway Patrol Interceptor (ETA < 5 mins)\",\n    \"2. Dispatch 50T hydraulic towing crane to clear overturned chassis\",\n    \"3. Deploy sand / chemical absorbent for diesel spill\",\n    \"4. Push diversion alert to Waze & Google Maps feeds\"\n  ],\n  \"work_order_id\": \"{{ $json.work_order_id }}\",\n  \"timestamp\": \"{{ $json.processed_at }}\"\n}",
+        "options": {}
+      },
+      "id": "inc-req-004",
+      "name": "Dispatch Police & Crane",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#civil-defense-disaster-response\",\n  \"priority\": \"CATASTROPHIC_TIER_0\",\n  \"event\": \"NATURAL DISASTER / WATERLOGGING / LANDSLIDE\",\n  \"location\": \"{{ $json.road_name }}\",\n  \"blockage\": \"TOTAL CARRIAGEWAY CLOSURE\",\n  \"traffic_impact\": \"GRIDLOCK 100% (+60m delay)\",\n  \"recommended_detour\": \"{{ $json.traffic_impact ? $json.traffic_impact.recommended_detour : 'Mandatory evacuation bypass' }}\",\n  \"dispatch_instructions\": [\n    \"1. Immediate closure of road segment between upstream highway interchanges\",\n    \"2. Mobilize Earthmover (JCB) & rock clearing excavators\",\n    \"3. Deploy high-capacity trailer stormwater pumps\",\n    \"4. Issue citizen Red Alert SMS broadcast\"\n  ],\n  \"work_order_id\": \"{{ $json.work_order_id }}\",\n  \"timestamp\": \"{{ $json.processed_at }}\"\n}",
+        "options": {}
+      },
+      "id": "inc-req-005",
+      "name": "Dispatch Disaster Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#municipal-road-blockage\",\n  \"priority\": \"HIGH\",\n  \"location\": \"{{ $json.road_name }}\",\n  \"blockage\": \"{{ $json.blockage_level }}\",\n  \"work_order_id\": \"{{ $json.work_order_id }}\"\n}",
+        "options": {}
+      },
+      "id": "inc-req-006",
+      "name": "Dispatch Road Marshals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"DISPATCH_CONFIRMED\",\n  \"work_order_id\": \"{{ $json.work_order_id }}\",\n  \"assigned_team\": \"{{ $json.assigned_dispatch_unit }}\",\n  \"emergency_priority\": \"{{ $json.emergency_priority }}\",\n  \"road_status\": \"{{ $json.is_road_impassable ? 'BLOCKED' : 'PARTIALLY_CONFINED' }}\",\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "inc-resp-007",
+      "name": "Acknowledge Incident Alert",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        340
+      ]
+    }
+  ],
+  "connections": {
+    "Incident Alert Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Incident & Route Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Incident & Route Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Route by Incident Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Incident Category": {
+      "main": [
+        [
+          {
+            "node": "Dispatch Police & Crane",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dispatch Disaster Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dispatch Road Marshals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch Police & Crane": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge Incident Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch Disaster Response": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge Incident Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch Road Marshals": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge Incident Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
